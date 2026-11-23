@@ -78,7 +78,7 @@ export default class KanbanPlugin extends Plugin {
   }
 
   onunload() {
-    this.MarkdownEditor = null;
+    this._MarkdownEditor = null;
     this.windowRegistry.forEach((reg, win) => {
       reg.viewStateReceivers.forEach((fn) => fn([]));
       this.unmount(win);
@@ -93,21 +93,21 @@ export default class KanbanPlugin extends Plugin {
     (this.app.workspace as any).unregisterHoverLinkSource(frontmatterKey);
   }
 
-  MarkdownEditor: any;
+  private _MarkdownEditor: any = null;
+  private settingsReady: Promise<void> = Promise.resolve();
 
-  async onload() {
-    await this.loadSettings();
+  get MarkdownEditor(): any {
+    if (!this._MarkdownEditor) {
+      this._MarkdownEditor = getEditorClass(this.app);
+    }
+    return this._MarkdownEditor;
+  }
 
-    this.MarkdownEditor = getEditorClass(this.app);
+  onload() {
+    this.settingsReady = this.loadSettings();
 
     this.registerEditorSuggest(new TimeSuggest(this.app, this));
     this.registerEditorSuggest(new DateSuggest(this.app, this));
-
-    this.registerEvent(
-      this.app.workspace.on('window-open', (_: any, win: Window) => {
-        this.mount(win);
-      })
-    );
 
     this.registerEvent(
       this.app.workspace.on('window-close', (_: any, win: Window) => {
@@ -117,6 +117,7 @@ export default class KanbanPlugin extends Plugin {
 
     this.settingsTab = new KanbanSettingsTab(this, {
       onSettingsChange: async (newSettings) => {
+        await this.settingsReady;
         this.settings = newSettings;
         await this.saveSettings();
 
@@ -133,13 +134,6 @@ export default class KanbanPlugin extends Plugin {
     this.registerMonkeyPatches();
     this.registerCommands();
     this.registerEvents();
-
-    // Mount an empty component to start; views will be added as we go
-    this.mount(window);
-
-    (this.app.workspace as any).floatingSplit?.children?.forEach((c: any) => {
-      this.mount(c.win);
-    });
 
     this.registerDomEvent(window, 'keydown', this.handleShift);
     this.registerDomEvent(window, 'keyup', this.handleShift);
@@ -200,6 +194,7 @@ export default class KanbanPlugin extends Plugin {
       const reg = this.windowRegistry.get(win);
 
       reg?.viewStateReceivers.push(setState);
+      setState(this.getKanbanViews(win));
 
       return () => {
         reg?.viewStateReceivers.remove(setState);
@@ -211,6 +206,9 @@ export default class KanbanPlugin extends Plugin {
 
   addView(view: KanbanView, data: string, shouldParseData: boolean) {
     const win = view.getWindow();
+    if (!this.windowRegistry.has(win)) {
+      this.mount(win);
+    }
     const reg = this.windowRegistry.get(win);
 
     if (!reg) return;
