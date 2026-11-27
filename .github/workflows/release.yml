@@ -33,4 +33,4 @@ jobs:
           gh release create "$tag" \
             --title="$tag" \
             --generate-notes \
-            main.js manifest.json styles.css
+            main.js manifest.json styles.css kanban-board.chunk.js kanban-settings.chunk.js kanban-locales.chunk.js

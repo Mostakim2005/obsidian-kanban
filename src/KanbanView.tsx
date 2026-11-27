@@ -1,5 +1,4 @@
 import EventEmitter from 'eventemitter3';
-import update from 'immutability-helper';
 import {
   HoverParent,
   HoverPopover,
@@ -12,21 +11,17 @@ import {
   debounce,
 } from 'obsidian';
 
-import { KanbanFormat, KanbanSettings, KanbanViewSettings, SettingsModal } from './Settings';
-import { Kanban } from './components/Kanban';
-import { BasicMarkdownRenderer } from './components/MarkdownRenderer/MarkdownRenderer';
-import { c } from './components/helpers';
-import { Board } from './components/types';
-import { getParentWindow } from './dnd/util/getWindow';
-import { gotoNextDailyNote, gotoPrevDailyNote, hasFrontmatterKeyRaw } from './helpers';
-import { bindMarkdownEvents } from './helpers/renderMarkdown';
-import { PromiseQueue } from './helpers/util';
+import type { KanbanFormat, KanbanSettings, KanbanViewSettings } from './SettingsSchema';
+import type { Board } from './components/types';
+import { hasFrontmatterKeyRaw } from './helpers/frontmatter';
 import { t } from './lang/helpers';
-import KanbanPlugin from './main';
-import { frontmatterKey } from './parsers/common';
+import type KanbanPlugin from './main';
+import { frontmatterKey } from './parsers/constants';
 
 export const kanbanViewType = 'kanban';
 export const kanbanIcon = 'lucide-trello';
+
+const c = (className: string) => `kanban-plugin__${className}`;
 
 export class KanbanView extends TextFileView implements HoverParent {
   plugin: KanbanPlugin;
@@ -34,11 +29,12 @@ export class KanbanView extends TextFileView implements HoverParent {
   emitter: EventEmitter;
   actionButtons: Record<string, HTMLElement> = {};
 
-  previewCache: Map<string, BasicMarkdownRenderer>;
-  previewQueue: PromiseQueue;
+  previewCache: Map<string, any>;
+  previewQueue: any;
 
   activeEditor: any;
   viewSettings: KanbanViewSettings = {};
+  _boardBound = false;
 
   get isPrimary(): boolean {
     return this.plugin.getStateManager(this.file)?.getAView() === this;
@@ -57,62 +53,16 @@ export class KanbanView extends TextFileView implements HoverParent {
     this.plugin = plugin;
     this.emitter = new EventEmitter();
     this.previewCache = new Map();
-
-    this.previewQueue = new PromiseQueue(() => this.emitter.emit('queueEmpty'));
-
-    this.emitter.on('hotkey', ({ commandId }) => {
-      switch (commandId) {
-        case 'daily-notes:goto-prev': {
-          gotoPrevDailyNote(this.app, this.file);
-          break;
-        }
-        case 'daily-notes:goto-next': {
-          gotoNextDailyNote(this.app, this.file);
-          break;
-        }
-      }
-    });
-
-    bindMarkdownEvents(this);
   }
 
   async prerender(board: Board) {
-    board.children.forEach((lane) => {
-      lane.children.forEach((item) => {
-        if (this.previewCache.has(item.id)) return;
-
-        this.previewQueue.add(async () => {
-          const preview = this.addChild(new BasicMarkdownRenderer(this, item.data.title));
-          this.previewCache.set(item.id, preview);
-          await preview.renderCapability.promise;
-        });
-      });
-    });
-
-    if (this.previewQueue.isRunning) {
-      await new Promise((res) => {
-        this.emitter.once('queueEmpty', res);
-      });
-    }
-
+    const rt = await this.plugin.ensureBoardRuntime();
+    await rt.prerenderView(this, board);
     this.initHeaderButtons();
   }
 
   validatePreviewCache(board: Board) {
-    const seenKeys = new Set<string>();
-    board.children.forEach((lane) => {
-      seenKeys.add(lane.id);
-      lane.children.forEach((item) => {
-        seenKeys.add(item.id);
-      });
-    });
-
-    for (const k of this.previewCache.keys()) {
-      if (!seenKeys.has(k)) {
-        this.removeChild(this.previewCache.get(k));
-        this.previewCache.delete(k);
-      }
-    }
+    this.plugin.boardRuntime?.validatePreviewCache(this, board);
   }
 
   setView(view: KanbanFormat) {
@@ -145,7 +95,7 @@ export class KanbanView extends TextFileView implements HoverParent {
   }
 
   getWindow() {
-    return getParentWindow(this.containerEl) as Window & typeof globalThis;
+    return ((this.containerEl as any).win || window) as Window & typeof globalThis;
   }
 
   async loadFile(file: TFile) {
@@ -156,6 +106,11 @@ export class KanbanView extends TextFileView implements HoverParent {
   }
 
   async onLoadFile(file: TFile) {
+    await Promise.all([
+      this.plugin.ensureSettingsReady(),
+      this.plugin.ensureLocaleReady(),
+      this.plugin.ensureBoardRuntime(),
+    ]);
     try {
       return await super.onLoadFile(file);
     } catch (e) {
@@ -173,6 +128,12 @@ export class KanbanView extends TextFileView implements HoverParent {
       });
     }
 
+    if (this.plugin.boardRuntime) {
+      this.plugin.boardRuntime.bindView(this);
+    } else {
+      void this.plugin.ensureBoardRuntime().then((rt) => rt.bindView(this));
+    }
+
     this.register(
       this.containerEl.onWindowMigrated(() => {
         this.plugin.removeView(this);
@@ -184,11 +145,10 @@ export class KanbanView extends TextFileView implements HoverParent {
   onunload(): void {
     super.onunload();
 
-    this.previewQueue.clear();
+    this.previewQueue?.clear?.();
     this.previewCache.clear();
     this.emitter.emit('queueEmpty');
 
-    // Remove draggables from render, as the DOM has already detached
     this.plugin.removeView(this);
     this.emitter.removeAllListeners();
     this.activeEditor = null;
@@ -211,10 +171,6 @@ export class KanbanView extends TextFileView implements HoverParent {
   }
 
   getViewData() {
-    // In theory, we could unparse the board here.  In practice, the board can be
-    // in an error state, so we return the last good data here.  (In addition,
-    // unparsing is slow, and getViewData() can be called more often than the
-    // data actually changes.)
     return this.data;
   }
 
@@ -227,9 +183,16 @@ export class KanbanView extends TextFileView implements HoverParent {
       return;
     }
 
+    if (!this.plugin.boardRuntime) {
+      void this.plugin.ensureBoardRuntime().then(() => {
+        this.setViewData(data, clear);
+      });
+      return;
+    }
+
     if (clear) {
       this.activeEditor = null;
-      this.previewQueue.clear();
+      this.previewQueue?.clear?.();
       this.previewCache.clear();
       this.emitter.emit('queueEmpty');
       Object.values(this.actionButtons).forEach((b) => b.remove());
@@ -257,7 +220,7 @@ export class KanbanView extends TextFileView implements HoverParent {
   ) {
     if (globalUpdater) {
       const stateManager = this.plugin.getStateManager(this.file);
-      stateManager.viewSet.forEach((view) => {
+      stateManager.viewSet.forEach((view: KanbanView) => {
         view.viewSettings[key] = globalUpdater(view.viewSettings[key]);
       });
     } else if (val) {
@@ -285,32 +248,11 @@ export class KanbanView extends TextFileView implements HoverParent {
   }
 
   getPortal() {
-    const stateManager = this.plugin.stateManagers.get(this.file);
-    return <Kanban stateManager={stateManager} view={this} />;
+    return this.plugin.boardRuntime?.getPortal(this) ?? null;
   }
 
   getBoardSettings() {
-    const stateManager = this.plugin.stateManagers.get(this.file);
-    const board = stateManager.state;
-
-    new SettingsModal(
-      this,
-      {
-        onSettingsChange: (settings) => {
-          const updatedBoard = update(board, {
-            data: {
-              settings: {
-                $set: settings,
-              },
-            },
-          });
-
-          // Save to disk, compute text of new board
-          stateManager.setState(updatedBoard);
-        },
-      },
-      board.data.settings
-    ).open();
+    void this.plugin.openBoardSettingsModal(this);
   }
 
   onPaneMenu(menu: Menu, source: string, callSuper: boolean = true) {
@@ -318,7 +260,6 @@ export class KanbanView extends TextFileView implements HoverParent {
       super.onPaneMenu(menu, source);
       return;
     }
-    // Add a menu item to force the board to markdown view
     menu
       .addItem((item) => {
         item
@@ -478,24 +419,5 @@ export class KanbanView extends TextFileView implements HoverParent {
     }
   };
 
-  clear() {
-    /*
-      Obsidian *only* calls this after unloading a file, before loading the next.
-      Specifically, from onUnloadFile, which calls save(true), and then optionally
-      calls clear, if and only if this.file is still non-empty.  That means that
-      in this function, this.file is still the *old* file, so we should not do
-      anything here that might try to use the file (including its path), so we
-      should avoid doing anything that refreshes the display.  (Since that could
-      use the file, and would also flash an empty pane during navigation, depending
-      on how long the next file load takes.)
-
-      Given all that, it makes more sense to clean up our state from onLoadFile, as
-      following a clear there are only two possible states: a successful onLoadFile
-      updates our full state via setViewData(), or else it aborts with an error
-      first.  So as long as setViewData() and the error handler for onLoadFile()
-      fully reset the state (to a valid load state or a valid error state),
-      there's nothing to do in this method.  (We can't omit it, since it's
-      abstract.)
-    */
-  }
+  clear() {}
 }

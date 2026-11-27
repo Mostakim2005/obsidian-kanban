@@ -1,6 +1,5 @@
 import { isPlainObject } from 'is-plain-object';
 import { TFile } from 'obsidian';
-import { getAPI } from 'obsidian-dataview';
 import { StateManager } from 'src/StateManager';
 import { Board, Item } from 'src/components/types';
 
@@ -48,7 +47,10 @@ export class ListFormat implements BaseFormat {
     const { ast, settings, frontmatter } = parseMarkdown(this.stateManager, md);
     const newBoard = astToUnhydratedBoard(this.stateManager, settings, frontmatter, ast, md);
     const { state } = this.stateManager;
-    const dv = getAPI();
+    const plugins = (this.stateManager.app as any).plugins;
+    const dv = plugins?.enabledPlugins?.has('dataview')
+      ? plugins?.plugins?.dataview?.api
+      : undefined;
 
     if (!this.stateManager.hasError() && state) {
       const ops = diff(

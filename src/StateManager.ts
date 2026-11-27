@@ -2,8 +2,8 @@ import update from 'immutability-helper';
 import { App, TFile, moment } from 'obsidian';
 import { useEffect, useState } from 'preact/compat';
 
-import { KanbanView } from './KanbanView';
-import { KanbanSettings, SettingRetrievers } from './Settings';
+import type { KanbanView } from './KanbanView';
+import { KanbanSettings, SettingRetrievers } from './SettingsSchema';
 import { getDefaultDateFormat, getDefaultTimeFormat } from './components/helpers';
 import { Board, BoardTemplate, Item } from './components/types';
 import { ListFormat } from './parsers/List';

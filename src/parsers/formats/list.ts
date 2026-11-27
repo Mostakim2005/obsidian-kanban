@@ -3,7 +3,7 @@ import { Content, List, Parent, Root } from 'mdast';
 import { ListItem } from 'mdast-util-from-markdown/lib';
 import { toString } from 'mdast-util-to-string';
 import { stringifyYaml } from 'obsidian';
-import { KanbanSettings } from 'src/Settings';
+import { KanbanSettings } from 'src/SettingsSchema';
 import { StateManager } from 'src/StateManager';
 import { generateInstanceId } from 'src/components/helpers';
 import {

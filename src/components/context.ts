@@ -1,5 +1,5 @@
 import { createContext } from 'preact/compat';
-import { KanbanView } from 'src/KanbanView';
+import type { KanbanView } from 'src/KanbanView';
 import { StateManager } from 'src/StateManager';
 import { IntersectionObserverHandler } from 'src/dnd/managers/ScrollManager';
 

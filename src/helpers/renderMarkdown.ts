@@ -1,5 +1,5 @@
 import { Keymap, Menu } from 'obsidian';
-import { KanbanView } from 'src/KanbanView';
+import type { KanbanView } from 'src/KanbanView';
 
 const noBreakSpace = /\u00A0/g;
 

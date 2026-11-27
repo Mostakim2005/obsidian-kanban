@@ -9,7 +9,7 @@ import {
   moment,
 } from 'obsidian';
 
-import KanbanPlugin from '../../main';
+import type KanbanPlugin from '../../main';
 import { buildTimeArray } from '../Item/helpers';
 import { c, escapeRegExpStr } from '../helpers';
 import { applyDate, constructDatePicker, toNextMonth, toPreviousMonth } from './datepicker';

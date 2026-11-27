@@ -201,7 +201,13 @@ if (polyfill && polyfill.default) {
 }
 
 const context = await esbuild.context({
-  entryPoints: ['./src/main.ts', './src/styles.less'],
+  entryPoints: {
+    main: './src/main.ts',
+    styles: './src/styles.less',
+    'kanban-board.chunk': './src/chunks/board.tsx',
+    'kanban-settings.chunk': './src/chunks/settings.ts',
+    'kanban-locales.chunk': './src/chunks/locales.ts',
+  },
   bundle: true,
   define: {
     global: 'window',
@@ -222,6 +228,8 @@ const context = await esbuild.context({
   external: [
     'obsidian',
     'electron',
+    'moment',
+    'obsidian-dataview',
     '@codemirror/autocomplete',
     '@codemirror/closebrackets',
     '@codemirror/collab',

@@ -2,7 +2,7 @@ import { fromMarkdown } from 'mdast-util-from-markdown';
 import { frontmatterFromMarkdown } from 'mdast-util-frontmatter';
 import { frontmatter } from 'micromark-extension-frontmatter';
 import { parseYaml } from 'obsidian';
-import { KanbanSettings, settingKeyLookup } from 'src/Settings';
+import { KanbanSettings, settingKeyLookup } from 'src/SettingsSchema';
 import { StateManager } from 'src/StateManager';
 import { getNormalizedPath } from 'src/helpers/renderMarkdown';
 

@@ -2,7 +2,7 @@ import classcat from 'classcat';
 import update from 'immutability-helper';
 import { JSX, createPortal, memo, useCallback, useMemo } from 'preact/compat';
 
-import { KanbanView } from './KanbanView';
+import type { KanbanView } from './KanbanView';
 import { DraggableItem } from './components/Item/Item';
 import { DraggableLane } from './components/Lane/Lane';
 import { KanbanContext } from './components/context';
@@ -19,7 +19,7 @@ import {
   updateEntity,
 } from './dnd/util/data';
 import { getBoardModifiers } from './helpers/boardModifiers';
-import KanbanPlugin from './main';
+import type KanbanPlugin from './main';
 import { frontmatterKey } from './parsers/common';
 import {
   getTaskStatusDone,

@@ -1,12 +1,14 @@
 import { App, TFile, moment } from 'obsidian';
-import { KanbanSettings } from 'src/Settings';
+import { KanbanSettings } from 'src/SettingsSchema';
 import { StateManager } from 'src/StateManager';
 import { anyToString } from 'src/components/Item/MetadataTable';
 import { Board, FileMetadata, Item } from 'src/components/types';
 import { defaultSort } from 'src/helpers/util';
 import { t } from 'src/lang/helpers';
 
-export const frontmatterKey = 'kanban-plugin';
+import { basicFrontmatter, frontmatterKey } from './constants';
+
+export { basicFrontmatter, frontmatterKey };
 
 export enum ParserFormats {
   List,
@@ -22,9 +24,6 @@ export interface BaseFormat {
 
 export const completeString = `**${t('Complete')}**`;
 export const archiveString = '***';
-export const basicFrontmatter = ['---', '', `${frontmatterKey}: board`, '', '---', '', ''].join(
-  '\n'
-);
 
 export function settingsToCodeblock(board: Board): string {
   return [

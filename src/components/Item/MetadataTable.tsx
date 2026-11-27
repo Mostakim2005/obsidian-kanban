@@ -1,12 +1,19 @@
 import classcat from 'classcat';
 import { isPlainObject } from 'is-plain-object';
 import { TFile, moment } from 'obsidian';
-import { getAPI } from 'obsidian-dataview';
 import { ComponentChild } from 'preact';
 import { memo, useContext, useMemo } from 'preact/compat';
-import { KanbanView } from 'src/KanbanView';
+import type { KanbanView } from 'src/KanbanView';
 import { StateManager } from 'src/StateManager';
 import { InlineField, taskFields } from 'src/parsers/helpers/inlineMetadata';
+
+function getDataviewAPI() {
+  const plugins = (window as any).app?.plugins;
+  if (plugins?.enabledPlugins?.has('dataview')) {
+    return plugins?.plugins?.dataview?.api;
+  }
+  return undefined;
+}
 
 import { MarkdownRenderer } from '../MarkdownRenderer/MarkdownRenderer';
 import { KanbanContext } from '../context';
@@ -123,7 +130,7 @@ function getDate(v: any) {
   }
   if (moment.isMoment(v)) return v;
   if (v instanceof Date) return moment(v);
-  const dv = getAPI();
+  const dv = getDataviewAPI();
   if (dv?.value.isDate(v)) return moment(v.ts);
   return null;
 }
@@ -138,7 +145,7 @@ export function anyToString(v: any, stateManager: StateManager): string {
     return v.map((v2) => anyToString(v2, stateManager)).join(' ');
   }
   if (v.rrule) return v.toText();
-  const dv = getAPI();
+  const dv = getDataviewAPI();
   if (dv) return dv.value.toString(v);
   return `${v}`;
 }

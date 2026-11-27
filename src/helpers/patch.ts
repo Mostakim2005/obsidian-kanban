@@ -1,6 +1,13 @@
 import { isPlainObject } from 'is-plain-object';
-import moment from 'moment';
-import { getAPI } from 'obsidian-dataview';
+import { moment } from 'obsidian';
+
+function getDataviewAPI() {
+  const plugins = (window as any).app?.plugins;
+  if (plugins?.enabledPlugins?.has('dataview')) {
+    return plugins?.plugins?.dataview?.api;
+  }
+  return undefined;
+}
 
 type Key = string | number;
 type Diffable = Record<Key, any> | any[];
@@ -29,7 +36,7 @@ function isDiffable(obj: any): obj is Diffable {
   if (!obj) return false;
   if (isPlainObject(obj) || Array.isArray(obj)) return true;
 
-  const dv = getAPI();
+  const dv = getDataviewAPI();
   if (!moment.isMoment(obj) && dv?.value.isObject(obj)) return true;
 
   return false;

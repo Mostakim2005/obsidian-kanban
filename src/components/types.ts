@@ -1,5 +1,5 @@
 import { TFile } from 'obsidian';
-import { KanbanSettings } from 'src/Settings';
+import { KanbanSettings } from 'src/SettingsSchema';
 import { Nestable } from 'src/dnd/types';
 import { InlineField } from 'src/parsers/helpers/inlineMetadata';
 import { FileAccessor } from 'src/parsers/helpers/parser';

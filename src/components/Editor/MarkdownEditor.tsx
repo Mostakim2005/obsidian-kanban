@@ -4,7 +4,7 @@ import { EditorView, ViewUpdate, keymap, placeholder as placeholderExt } from '@
 import classcat from 'classcat';
 import { EditorPosition, Editor as ObsidianEditor, Platform } from 'obsidian';
 import { MutableRefObject, useContext, useEffect, useRef } from 'preact/compat';
-import { KanbanView } from 'src/KanbanView';
+import type { KanbanView } from 'src/KanbanView';
 import { StateManager } from 'src/StateManager';
 import { t } from 'src/lang/helpers';
 
